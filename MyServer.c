@@ -32,7 +32,7 @@ main(int argc, char *argv[]){
 	if(WSAStartup(WSVERS, &wsadata) != 0){
 		WSACleanup();
 		printf("WSAStartup failed. Error Code : %d", WSAGetLastError());
-		return 1;
+		exit(1);
 	}
 	printf("Initialised.\n");
 
@@ -57,7 +57,7 @@ main(int argc, char *argv[]){
 	//INADDR_ANY sets sin_addr to 0,0,0,0 local
 	
 //BIND
-	if (bind(s,(struct sockaddr *)(&localaddr),sizeof(localaddr))!=0){
+	if (bind(s,(struct sockaddr *)(&localaddr),sizeof(localaddr))!=0){	//jiu shi zhe yi hang la
 		printf("Bind failed!\n");
 		exit(0);
 	}
