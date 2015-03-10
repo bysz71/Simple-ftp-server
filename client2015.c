@@ -95,7 +95,8 @@ int main(int argc, char *argv[]) {
    send_buffer[strlen(send_buffer)-1]='\0';//strip send_buffer from '\n'
    printf("lenght is %d \n",(int)strlen(send_buffer));
 #elif defined _WIN32 
-  //nothing to do
+  //nothing to do <--not nothing to do !! @alan  
+   send_buffer[strlen(send_buffer)-1]='\0';//strip send_buffer from '\n'
 #endif
       printf(">>> %s\n",send_buffer);//line sent
       strcat(send_buffer,"\r\n");
