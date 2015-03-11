@@ -22,6 +22,7 @@ main(int argc, char *argv[]){
 	//declare 2 socket
 	
 	char send_buffer[BUFFERSIZE],receive_buffer[BUFFERSIZE];
+	char bool;
 	memset(&send_buffer,0,BUFFERSIZE);
 	memset(&receive_buffer,0,BUFFERSIZE);
 	//initialize send_buffer and receive_buffer
@@ -52,7 +53,7 @@ main(int argc, char *argv[]){
 	//address family set for TCP
 	if (argc == 2) {
 		localaddr.sin_port = htons((u_short)atoi(argv[1]));
-		printf("Communication port is specified to %s.",argv[1]);
+		printf("Communication port is specified to %s. \n",argv[1]);
 	//argv[1] specifies port, convert from string to int, cast to unsigned shot, convert from host to network short
 	}else{
 		localaddr.sin_port = htons(1234);
@@ -90,8 +91,8 @@ main(int argc, char *argv[]){
 			printf("Waiting for username...\n");
 			sprintf(send_buffer,"<<<SERVER: Please enter your username(just enter 'admin'...): \n");
 			bytes = send(ns,send_buffer,strlen(send_buffer),0);
+			printf("bytes = %d\n",bytes);
 			if(bytes<0) break;
-			
 //username input
 			n=0;
 			while(1){
@@ -104,9 +105,10 @@ main(int argc, char *argv[]){
 				if(receive_buffer[n] != '\r') n++;
 			}
 			if(bytes<=0)break;
+			printf("<<<Client: %s\n",receive_buffer);
 			
 //username verification			
-			if(strncmp(receive_buffer,USER,sizeof(USER))!=0){
+			if(strncmp(receive_buffer,USER,strlen(USER))!=0){
 				printf("%s not found, invalid user.\n", receive_buffer);
 				sprintf(send_buffer,"<<<SERVER: Invalid username, please try again.\n");
 				bytes = send(ns,send_buffer,strlen(send_buffer),0);
@@ -132,21 +134,22 @@ main(int argc, char *argv[]){
 				if(receive_buffer[n] != '\r') n++;
 			}
 			if(bytes<=0)break;
+			printf("<<<Client: %s\n",receive_buffer);
 
 //password verification
-			if(strncmp(receive_buffer,PW,sizeof(PW))!=0){
+			if(strncmp(receive_buffer,PW,strlen(PW))!=0){
 				printf("%s not match, incorrect password.\n",receive_buffer);
 				sprintf(send_buffer,"<<<SERVER: Incorrect password, please try again.\n");
 				bytes = send(ns,send_buffer,strlen(send_buffer),0);
 				continue;
 			}else{
-				printf("Login succeeded\n");
-				sprintf(send_buffer,"<<<SERVER: Login successfully.");
+				printf("Login successfully.\n");
+				sprintf(send_buffer,"<<<SERVER: Login successfully.\n");
 				bytes = send(ns,send_buffer,strlen(send_buffer),0);
 				break;
 			}
 		}
-		printf("Test for user verification, good if you can see this");
+		printf("Test for user verification, good if you can see this\n");
 		while(1){
 			n = 0;
 			while(1){
@@ -184,6 +187,10 @@ main(int argc, char *argv[]){
 		}
 		closesocket(ns);
 		printf("disconnected from %s \n", inet_ntoa(remoteaddr.sin_addr));
+		printf("exit?(y/n)");
+		bool = getchar();
+		if(bool=='y')exit(1);
+		
 	}
 	closesocket(s);
 	return 0;
