@@ -12,6 +12,9 @@ WSADATA wsadata;
 #define BUFFERSIZE 200
 #define SEGMENTSIZE 198
 
+static const char USER[] = "admin";
+static const char PW[] = "admin";
+
 main(int argc, char *argv[]){
 	struct sockaddr_in localaddr,remoteaddr;
 	//declare 2 sockaddr_in struct
@@ -47,10 +50,14 @@ main(int argc, char *argv[]){
 	}
 	localaddr.sin_family = AF_INET;
 	//address family set for TCP
-	if (argc == 2) localaddr.sin_port = htons((u_short)atoi(argv[1]));
+	if (argc == 2) {
+		localaddr.sin_port = htons((u_short)atoi(argv[1]));
+		printf("Communication port is specified to %s.",argv[1]);
 	//argv[1] specifies port, convert from string to int, cast to unsigned shot, convert from host to network short
-	else localaddr.sin_port = htons(1234);
-	printf("No port specified, used defaut port\n");
+	}else{
+		localaddr.sin_port = htons(1234);
+		printf("No port specified, use default port 1234.\n");
+	}
 	//default port
 	localaddr.sin_addr.s_addr = INADDR_ANY;
 	//s_addr is 32 bit unsigned long, IP address
@@ -76,39 +83,104 @@ main(int argc, char *argv[]){
 		printf("accepted a connection from client IP %s port %d \n",inet_ntoa(remoteaddr.sin_addr),ntohs(localaddr.sin_port));
 		//inet_ntoa converts Ipv4 address into ASCII string in internet standard dotted-decimal format
 		//ntohs converts a u_short from TCP/IP network byte order to host byte order (format conversion blah blah)
+		
+//user verification
+		while(1){
+			memset(&send_buffer,0,BUFFERSIZE);
+			printf("Waiting for username...\n");
+			sprintf(send_buffer,"<<<SERVER: Please enter your username(just enter 'admin'...): \n");
+			bytes = send(ns,send_buffer,strlen(send_buffer),0);
+			if(bytes<0) break;
+			
+//username input
+			n=0;
+			while(1){
+				bytes = recv(ns,&receive_buffer[n],1,0);
+				if(bytes<=0) break;
+				if(receive_buffer[n] == '\n'){
+					receive_buffer[n] = '\0';
+					break;
+				}
+				if(receive_buffer[n] != '\r') n++;
+			}
+			if(bytes<=0)break;
+			
+//username verification			
+			if(strncmp(receive_buffer,USER,sizeof(USER))!=0){
+				printf("%s not found, invalid user.\n", receive_buffer);
+				sprintf(send_buffer,"<<<SERVER: Invalid username, please try again.\n");
+				bytes = send(ns,send_buffer,strlen(send_buffer),0);
+				continue;
+			}
+			
+//password request
+			printf("Waiting for password...\n");
+			memset(&send_buffer,0,BUFFERSIZE);
+			sprintf(send_buffer,"<<<SERVER: Please enter your password(just enter 'admin' as well...):\n");
+			bytes = send(ns,send_buffer,strlen(send_buffer),0);
+			if(bytes<0) break;
+			
+//password input
+			n=0;
+			while(1){
+				bytes = recv(ns,&receive_buffer[n],1,0);
+				if(bytes<=0) break;
+				if(receive_buffer[n] == '\n'){
+					receive_buffer[n] = '\0';
+					break;
+				}
+				if(receive_buffer[n] != '\r') n++;
+			}
+			if(bytes<=0)break;
+
+//password verification
+			if(strncmp(receive_buffer,PW,sizeof(PW))!=0){
+				printf("%s not match, incorrect password.\n",receive_buffer);
+				sprintf(send_buffer,"<<<SERVER: Incorrect password, please try again.\n");
+				bytes = send(ns,send_buffer,strlen(send_buffer),0);
+				continue;
+			}else{
+				printf("Login succeeded\n");
+				sprintf(send_buffer,"<<<SERVER: Login successfully.");
+				bytes = send(ns,send_buffer,strlen(send_buffer),0);
+				break;
+			}
+		}
+		printf("Test for user verification, good if you can see this");
 		while(1){
 			n = 0;
 			while(1){
 				bytes = recv(ns,&receive_buffer[n],1,0);
 				//recv returns the number of bytes received
 				//socket, buffer pointer, length in bytes, flag(dont know)
-				if(bytes<=0) {
-					printf("3rd tier loop break coz recv byte <=0\n");
-					break;
-				}
+				if(bytes<=0) break;
 				if(receive_buffer[n] == '\n'){
 					receive_buffer[n] = '\0';
 					//if current byte is line feed, change it to enter
-					printf("3rd tier loop break coz recv a enter\n");
 					break;
 				}
 				if(receive_buffer[n] != '\r'){
 					//if carriage return, ignore
-					printf("%d ,",n);
 					n++;
 				}
 			}
-			if(bytes <= 0) {
-				printf("2nd tier loop break coz recv byte <=0\n");
-				break;
-			}
-			printf("The client is sending: %s\n", receive_buffer);
+			if(bytes <= 0) break;
+			//???
+			printf("-->Debug: message reads from client <%s>", receive_buffer);
+			
+			
+			
+//send message to client
 			memset(&send_buffer,0,BUFFERSIZE);
+			//clean send_buffer
 			sprintf(send_buffer, "<<<SERVER SAYS:The client typed '%s' - There are %d bytes of information\r\n", receive_buffer,n);
+			//give value to send_buffer
 			bytes = send(ns,send_buffer,strlen(send_buffer),0);
-			if (bytes < 0) {
-				printf("2nd tier loop break coz recv byte < 0\n");
-			}
+			//send send_buffer
+			if (bytes < 0) break;
+			//??? in what conditions send() returns minus value?
+			
+			
 		}
 		closesocket(ns);
 		printf("disconnected from %s \n", inet_ntoa(remoteaddr.sin_addr));
