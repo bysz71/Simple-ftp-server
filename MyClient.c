@@ -39,12 +39,14 @@ int main(int argc, char *argv[]){
 		printf("connect failed\n");
 		exit(1);
 	}
-	
+
+
+//value send_buffer	
 	memset(&send_buffer, 0, BUFFERSIZE);
 	fgets(send_buffer,SEGMENTSIZE,stdin);
-	int cnt = 0;
+	send_buffer[strlen(send_buffer)-1] = '\0';
+	
 	while(strncmp(send_buffer,".",1)!=0){
-		send_buffer[strlen(send_buffer)-1] = '\0';
 		printf(">>>%s\n",send_buffer);
 		strcat(send_buffer,"\r\n");
 		bytes = send(s, send_buffer, strlen(send_buffer),0);
@@ -65,11 +67,10 @@ int main(int argc, char *argv[]){
 			}
 			if(receive_buffer[n] != '\r')n++;
 		}
-		n++;
-		printf("%d th recv\n");
 		printf("%s \n",receive_buffer);
 		memset(&send_buffer,0,BUFFERSIZE);
-		fgets(send_buffer,SEGMENTSIZE,stdin);;
+		fgets(send_buffer,SEGMENTSIZE,stdin);
+		send_buffer[strlen(send_buffer)-1] = '\0';
 	}
 	printf("error\n");
 	closesocket(s);

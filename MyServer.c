@@ -14,14 +14,24 @@ WSADATA wsadata;
 
 static const char USER[] = "admin";
 static const char PW[] = "admin";
+void str_cut(char* output_string, const char* input_string, int start, int end);
+
+char rfc[20][4];
+
+
+
 
 main(int argc, char *argv[]){
+	strcpy(rfc[0],"SYST");
+	strcpy(rfc[1],"USER");
+	strcpy(rfc[2],"PASS");
 	struct sockaddr_in localaddr,remoteaddr;
 	//declare 2 sockaddr_in struct
 	SOCKET s, ns;
 	//declare 2 socket
 	
 	char send_buffer[BUFFERSIZE],receive_buffer[BUFFERSIZE];
+	char temp[BUFFERSIZE];
 	char bool;
 	memset(&send_buffer,0,BUFFERSIZE);
 	memset(&receive_buffer,0,BUFFERSIZE);
@@ -84,72 +94,12 @@ main(int argc, char *argv[]){
 		printf("accepted a connection from client IP %s port %d \n",inet_ntoa(remoteaddr.sin_addr),ntohs(localaddr.sin_port));
 		//inet_ntoa converts Ipv4 address into ASCII string in internet standard dotted-decimal format
 		//ntohs converts a u_short from TCP/IP network byte order to host byte order (format conversion blah blah)
-		
-//user verification
-		while(1){
-			memset(&send_buffer,0,BUFFERSIZE);
-			printf("Waiting for username...\n");
-			sprintf(send_buffer,"<<<SERVER: Please enter your username(just enter 'admin'...): \n");
-			bytes = send(ns,send_buffer,strlen(send_buffer),0);
-			printf("bytes = %d\n",bytes);
-			if(bytes<0) break;
-//username input
-			n=0;
-			while(1){
-				bytes = recv(ns,&receive_buffer[n],1,0);
-				if(bytes<=0) break;
-				if(receive_buffer[n] == '\n'){
-					receive_buffer[n] = '\0';
-					break;
-				}
-				if(receive_buffer[n] != '\r') n++;
-			}
-			if(bytes<=0)break;
-			printf("<<<Client: %s\n",receive_buffer);
-			
-//username verification			
-			if(strncmp(receive_buffer,USER,strlen(USER))!=0){
-				printf("%s not found, invalid user.\n", receive_buffer);
-				sprintf(send_buffer,"<<<SERVER: Invalid username, please try again.\n");
-				bytes = send(ns,send_buffer,strlen(send_buffer),0);
-				continue;
-			}
-			
-//password request
-			printf("Waiting for password...\n");
-			memset(&send_buffer,0,BUFFERSIZE);
-			sprintf(send_buffer,"<<<SERVER: Please enter your password(just enter 'admin' as well...):\n");
-			bytes = send(ns,send_buffer,strlen(send_buffer),0);
-			if(bytes<0) break;
-			
-//password input
-			n=0;
-			while(1){
-				bytes = recv(ns,&receive_buffer[n],1,0);
-				if(bytes<=0) break;
-				if(receive_buffer[n] == '\n'){
-					receive_buffer[n] = '\0';
-					break;
-				}
-				if(receive_buffer[n] != '\r') n++;
-			}
-			if(bytes<=0)break;
-			printf("<<<Client: %s\n",receive_buffer);
 
-//password verification
-			if(strncmp(receive_buffer,PW,strlen(PW))!=0){
-				printf("%s not match, incorrect password.\n",receive_buffer);
-				sprintf(send_buffer,"<<<SERVER: Incorrect password, please try again.\n");
-				bytes = send(ns,send_buffer,strlen(send_buffer),0);
-				continue;
-			}else{
-				printf("Login successfully.\n");
-				sprintf(send_buffer,"<<<SERVER: Login successfully.\n");
-				bytes = send(ns,send_buffer,strlen(send_buffer),0);
-				break;
-			}
-		}
-		printf("Test for user verification, good if you can see this\n");
+//system info feed 
+		sprintf(send_buffer,"220 System ready\n");
+		bytes = send(ns,send_buffer,strlen(send_buffer),0);
+		if(bytes<0)break;
+		
 		while(1){
 			n = 0;
 			while(1){
@@ -168,16 +118,39 @@ main(int argc, char *argv[]){
 				}
 			}
 			if(bytes <= 0) break;
-			//???
-			printf("-->Debug: message reads from client <%s>", receive_buffer);
+
+			printf("-->Debug: message reads from client <%s>\n", receive_buffer);
 			
-			
+			int cnt=0;
+			while(cnt<BUFFERSIZE){
+				if(strncmp(receive_buffer,rfc[cnt],4)==0)break;
+				cnt++;
+			}
+			str_cut(temp,receive_buffer,5,strlen(receive_buffer));
+			memset(&send_buffer,0,BUFFERSIZE);
+			switch(cnt){
+				case 0:
+					sprintf(send_buffer,"211 system info\n");
+					break;
+				case 1:
+					if(strncmp(temp,"admin",strlen(temp))==0){
+						sprintf(send_buffer,"331 user ok, wait for password\n");
+					}else{
+						sprintf(send_buffer,"332 user not found\n");
+					}
+					break;
+				case 2:
+					if(strncmp(temp,"admin",strlen(temp))==0){
+						sprintf(send_buffer,"230 logged in\n");
+					}else{
+						sprintf(send_buffer,"332 type your username again\n");
+					}
+				default:
+					sprintf(send_buffer,"332 user required");
+			}
+
 			
 //send message to client
-			memset(&send_buffer,0,BUFFERSIZE);
-			//clean send_buffer
-			sprintf(send_buffer, "<<<SERVER SAYS:The client typed '%s' - There are %d bytes of information\r\n", receive_buffer,n);
-			//give value to send_buffer
 			bytes = send(ns,send_buffer,strlen(send_buffer),0);
 			//send send_buffer
 			if (bytes < 0) break;
@@ -194,9 +167,13 @@ main(int argc, char *argv[]){
 	}
 	closesocket(s);
 	return 0;
-	
-	
-	
-	
-	
+}
+
+void str_cut(char* output_string, const char* input_string, int start, int end){
+	int i = 0;
+	int j = 0;
+	for(j = start; j <= end; j++){
+		output_string[i] = input_string[j];
+		i++;
+	}
 }
