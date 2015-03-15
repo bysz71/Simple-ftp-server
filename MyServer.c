@@ -35,9 +35,10 @@ main(int argc, char *argv[]){
 	struct sockaddr_in localaddr,remoteaddr,data_addr_act;
 	SOCKET s, ns, s_data_act;
 	
-	unsigned char act_ip[4];
+	int act_ip[4];
 	unsigned char act_port[2];
 	int port_dec, connect_result;
+	char addr_data[20];
 	
 	char send_buffer[BUFFERSIZE],receive_buffer[BUFFERSIZE];
 	char temp[BUFFERSIZE];
@@ -128,11 +129,14 @@ main(int argc, char *argv[]){
 		bytes = recv_msg(receive_buffer,ns);
 		if(bytes < 0) break;
 		if(strncmp(receive_buffer,"PORT",4) == 0){
+			//str_cut(temp,receive_buffer,5,strlen(receive_buffer));
+			//printf(temp);
+			//sscanf(temp, "%d,%d,%d,%d,%d,%d",&act_ip[0],&act_ip[1],&act_ip[2],&act_ip[3],&act_port[0],&act_port[1]);
+			//sprintf(addr_data,"%d.%d.%d.%d",act_ip[0],act_ip[1],act_ip[2],act_ip[3]);
+			//printf("%s",addr_data);
 			sscanf(receive_buffer, "PORT %d,%d,%d,%d,%d,%d",&act_ip[0],&act_ip[1],&act_ip[2],&act_ip[3],&act_port[0],&act_port[1]);
-			port_dec = act_port[0];
-			port_dec = port_dec << 8;
-			port_dec = port_dec + act_port[1];
-			data_addr_act.sin_port = htons(port_dec);
+			port_dec = (act_port[0] << 8) + act_port[1];
+			data_addr_act.sin_port = htons(port_dec);			
 			data_addr_act.sin_addr.s_addr = inet_addr("192.168.1.5");
 			data_addr_act.sin_family = AF_INET;
 			s_data_act = socket(AF_INET, SOCK_STREAM, 0);
@@ -168,17 +172,17 @@ main(int argc, char *argv[]){
 				dp = opendir("./");
 				if(dp != NULL){
 					while(ep = readdir(dp)){
-						sprintf(send_buffer,ep->d_name);
-						strcat(send_buffer,"\n");
-						bytes = send(s_data_act, send_buffer,strlen(send_buffer),0);
-						if(bytes < 0) break;
-						if (ep == NULL) break;
+						puts(ep->d_name);
+						//sprintf(send_buffer,ep->d_name);
+						//strcat(send_buffer,"\n");
+						//bytes = send(s_data_act, send_buffer,strlen(send_buffer),0);
+						//if(bytes < 0) break;
 					}
 					printf("aaa\n");
 					(void) closedir (dp);
 				}else
 					perror("couldn't open the directory");
-				
+				printf("bbb\n");
 				sprintf(send_buffer,"226 closing data connection. Requested file action successful.\n");
 				bytes = send(ns,send_buffer,strlen(send_buffer),0);
 				if(bytes < 0) break;
