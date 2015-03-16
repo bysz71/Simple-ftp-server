@@ -102,9 +102,17 @@ main(int argc, char *argv[]){
 		if(bytes<0)break;
 
 		while(1){
+			memset(&receive_buffer,0,BUFFERSIZE);
 			bytes = recv_msg(receive_buffer,ns);
 			if(bytes < 0)break;
 			memset(&send_buffer,0,BUFFERSIZE);
+			
+			if(strncmp(receive_buffer,"USER",4) && strncmp(receive_buffer,"PASS",4) && strncmp(receive_buffer,"SYST",4) 
+				&&strncmp(receive_buffer,"PORT",4) && strncmp(receive_buffer,"STOR",4) && strncmp(receive_buffer,"RETR",4)
+				&&strncmp(receive_buffer,"LIST",4) && strncmp(receive_buffer,"NLST",4) && strncmp(receive_buffer,"QUIT",4)){
+                sprintf(send_buffer,"202 Command not implemented, superfluous at this site. \r\n");
+                bytes = send(ns,send_buffer,strlen(send_buffer),0);
+            }
 			
 			if(strncmp(receive_buffer,"USER",4) == 0){
 				sprintf(send_buffer,"331 password required\n");
@@ -185,6 +193,21 @@ main(int argc, char *argv[]){
 			}
 			
 			if(strncmp(receive_buffer,"STOR",4) == 0){
+				char filename[100];
+				char data_buffer[200];
+				FILE *fp;
+				str_cut(filename,receive_buffer,5,strlen(receive_buffer));
+				fp=fopen(filename,"w");
+				while(1){
+					bytes = recv_msg(data_buffer,s_data_act);
+					if(bytes<0)break;
+					fprintf(fp,"%s\n",data_buffer);
+				}
+				fclose(fp);
+				closesocket(s_data_act);
+				sprintf(send_buffer,"226 file uploaded.\n");
+				bytes = send(ns,send_buffer,strlen(send_buffer),0);
+				
 				
 			}
 			

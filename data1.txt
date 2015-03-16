@@ -1,0 +1,2 @@
+fprintf test from scott
+fputs test
