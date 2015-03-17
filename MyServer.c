@@ -89,7 +89,7 @@ main(int argc, char *argv[]){
 		addrlen = sizeof(remoteaddr);
 		ns = accept(s,(struct sockaddr *)(&remoteaddr),&addrlen);
 		if (ns < 0){
-			sprintf(send_buffer,"421 Service not available, closing control connection\n");
+			sprintf(send_buffer,"421 Service not available, closing control connection\r\n");
 			break;
 		}
 		printf("SERVER : accepted a connection from client IP %s port %d \n",inet_ntoa(remoteaddr.sin_addr),ntohs(localaddr.sin_port));
@@ -97,7 +97,7 @@ main(int argc, char *argv[]){
 		//ntohs converts a u_short from TCP/IP network byte order to host byte order (format conversion blah blah)
 
 		//system info feed if 421 not happen
-		sprintf(send_buffer,"220 Microsoft FTP service\n");
+		sprintf(send_buffer,"220 Microsoft FTP service\r\n");
 		bytes = send(ns,send_buffer,strlen(send_buffer),0);
 		if(bytes<0)break;
 
@@ -109,25 +109,25 @@ main(int argc, char *argv[]){
 			
 			if(strncmp(receive_buffer,"USER",4) && strncmp(receive_buffer,"PASS",4) && strncmp(receive_buffer,"SYST",4) 
 				&&strncmp(receive_buffer,"PORT",4) && strncmp(receive_buffer,"STOR",4) && strncmp(receive_buffer,"RETR",4)
-				&&strncmp(receive_buffer,"LIST",4) && strncmp(receive_buffer,"NLST",4) && strncmp(receive_buffer,"QUIT",4)){
+				&&strncmp(receive_buffer,"LIST",4) && strncmp(receive_buffer,"QUIT",4)){
                 sprintf(send_buffer,"202 Command not implemented, superfluous at this site. \r\n");
                 bytes = send(ns,send_buffer,strlen(send_buffer),0);
             }
 			
 			if(strncmp(receive_buffer,"USER",4) == 0){
-				sprintf(send_buffer,"331 password required\n");
+				sprintf(send_buffer,"331 password required\r\n");
 				bytes = send(ns,send_buffer,strlen(send_buffer),0);
 				if(bytes < 0)break;
 			}
 			
 			if(strncmp(receive_buffer,"PASS",4) == 0){
-				sprintf(send_buffer,"230 logged in\n");
+				sprintf(send_buffer,"230 logged in\r\n");
 				bytes = send(ns,send_buffer,strlen(send_buffer),0);
 				if(bytes < 0)break;
 			}
 			
 			if(strncmp(receive_buffer,"QUIT",4) == 0){
-				sprintf(send_buffer,"221 Service closing control connection\n");
+				sprintf(send_buffer,"221 Service closing control connection\r\n");
 				bytes = send(ns,send_buffer,strlen(send_buffer),0);
 				if(bytes < 0)break;
 				exit(1);
@@ -169,7 +169,7 @@ main(int argc, char *argv[]){
 			if(strncmp(receive_buffer,"LIST",4) == 0){
 				DIR *dp;
 				struct dirent *ep;
-				sprintf(send_buffer,"125 data connection already open, transfer starting\n");
+				sprintf(send_buffer,"125 data connection already open, transfer starting\r\n");
 				bytes = send(ns,send_buffer,strlen(send_buffer),0);
 				if(bytes < 0) break;
 				dp = opendir("./");
@@ -178,7 +178,7 @@ main(int argc, char *argv[]){
 						//puts(ep->d_name);
 						sprintf(temp,"200\t");
 						strcat(temp,ep->d_name);
-						strcat(temp,"\n");
+						strcat(temp,"\r\n");
 						sprintf(send_buffer,temp);
 						bytes = send(s_data_act, send_buffer,strlen(send_buffer),0);
 						if(bytes < 0) break;						
@@ -187,32 +187,84 @@ main(int argc, char *argv[]){
 				}else
 					perror("SERVER : couldn't open the directory.");
 				closesocket(s_data_act);
-				sprintf(send_buffer,"226 closing data connection. Requested file action successful.\n");
+				sprintf(send_buffer,"226 closing data connection. Requested file action successful.\r\n");
 				bytes = send(ns,send_buffer,strlen(send_buffer),0);
 				if(bytes < 0) break;
 			}
 			
 			if(strncmp(receive_buffer,"STOR",4) == 0){
 				char filename[100];
-				char data_buffer[200];
-				FILE *fp;
+				char data_buffer[BUFFERSIZE];
+				FILE *fout;
+				sprintf(send_buffer,"125 data connection already open, transfer starting\r\n");
+				bytes = send(ns,send_buffer,strlen(send_buffer),0);
 				str_cut(filename,receive_buffer,5,strlen(receive_buffer));
-				fp=fopen(filename,"w");
+				fout=fopen(filename,"w");
 				while(1){
 					bytes = recv_msg(data_buffer,s_data_act);
-					if(bytes<0)break;
-					fprintf(fp,"%s\n",data_buffer);
+					printf("%s\n",data_buffer);
+					if(bytes<=0)break;
+					fprintf(fout,"%s\r\n",data_buffer);
 				}
-				fclose(fp);
+				fclose(fout);
 				closesocket(s_data_act);
-				sprintf(send_buffer,"226 file uploaded.\n");
+				sprintf(send_buffer,"226 file uploaded.\r\n");
 				bytes = send(ns,send_buffer,strlen(send_buffer),0);
-				
-				
+				if(bytes<0)break;
 			}
 			
 			if(strncmp(receive_buffer,"RETR",4) == 0){
+				char filename[100];
+				char data_buffer[BUFFERSIZE]; 	
+				FILE *fin;
+				sprintf(send_buffer,"125 data connection already open, transfer starting\r\n");
+				bytes = send(ns,send_buffer,strlen(send_buffer),0);
+				if(bytes<0)break;
+				str_cut(filename,receive_buffer,5,strlen(receive_buffer));
+				fin = fopen(filename,"r");
+				if(fin == NULL){
+					printf("Server: cannot open %s",filename);
+					break;
+				}
+				//while(fscanf(fin, "   %s   ", data_buffer) != EOF){
+				while(fgets(data_buffer,BUFFERSIZE,fin)!=NULL){
+					//fscanf(fin,"%s\r\n",data_buffer);
+					//fgets(data_buffer,BUFFERSIZE,fin);
+					//printf(data_buffer);
+					sprintf(send_buffer,"%s\n",data_buffer);
+					bytes = send(s_data_act,send_buffer,strlen(send_buffer),0);
+					if(bytes<=0) break;
+				}
+				fclose(fin);
+				closesocket(s_data_act);
+				sprintf(send_buffer,"226 file downloaded.\r\n");
+				bytes = send(ns,send_buffer,strlen(send_buffer),0);
+				if(bytes < 0)break;
 				
+			}
+			
+			if(strncmp(receive_buffer,"SYST",4 == 0)){
+				char filename[] = "syst_info.txt";
+				FILE *fin;
+				char data_buffer[BUFFERSIZE];
+				sprintf(send_buffer,"125 data connection already open, transfer starting\r\n");
+				bytes = send(ns,send_buffer,strlen(send_buffer),0);
+				if(bytes<0)break;
+				fin = fopen (filename,"r");
+				if(fin == NULL){
+					printf("Server: cannot open %s",filename);
+					break;
+				}
+				while(fgets(data_buffer,BUFFERSIZE,fin)!=NULL){
+					//printf(data_buffer);
+					bytes = send(s_data_act,send_buffer,strlen(send_buffer),0);
+					if(bytes<0) break;
+				}
+				fclose(fin);
+				closesocket(s_data_act);
+				sprintf(send_buffer,"226 system info done.\r\n");
+				bytes = send(ns,send_buffer,strlen(send_buffer),0);
+				if(bytes<0)break;
 			}
 			
 			
@@ -221,7 +273,7 @@ main(int argc, char *argv[]){
 
 
 		closesocket(ns);
-		printf("SERVER : disconnected from %s \n", inet_ntoa(remoteaddr.sin_addr));
+		printf("SERVER : disconnected from %s \r\n", inet_ntoa(remoteaddr.sin_addr));
 		printf("SERVER : exit?(y/n)");
 		bool = getchar();
 		if(bool=='y')exit(1);
@@ -266,6 +318,6 @@ int recv_msg(char* receive_buffer,int ns){
 		if(receive_buffer[n] != '\r') n++;
 	}
 	//if(bytes <= 0) break;
-	printf("-->Debug: message reads from client <%s>\n", receive_buffer);
+	printf("-->Debug: message reads from client <%s>\r\n", receive_buffer);
 	return bytes;
 }
